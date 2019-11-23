@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+service RaftNode {
+  rpc RequestVote(VoteRequest) returns (VoteResponse) {};  
+  rpc AppendEntries(EntryData) returns (EntryResults) {};
+}
+
+message VoteRequest {
+    uint32 term = 1;
+    uint32 candidateID = 2;
+    uint32 lastLogIndex = 3;
+    uint32 lastLogTerm = 4;
+}
+
+message VoteResponse {
+    uint32 term = 1;
+    bool voteGranted = 2;
+}
+
+message EntryData {
+   uint32 term = 1;
+   string leaderID = 2;
+   uint32 prevLogIndex = 3;
+   uint32 prevLogTerm = 4;
+   repeated Entry entries = 5;
+   uint32 leaderCommit = 6;
+}
+
+message EntryResults {
+    uint32 term = 1;
+    bool success = 2;
+}
+
+message Entry {
+    string value = 1;
+}
