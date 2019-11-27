@@ -7,7 +7,7 @@ service RaftNode {
 
 message VoteRequest {
     uint32 term = 1;
-    uint32 candidateID = 2;
+    string candidateID = 2;
     uint32 lastLogIndex = 3;
     uint32 lastLogTerm = 4;
 }

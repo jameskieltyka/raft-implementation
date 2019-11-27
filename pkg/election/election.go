@@ -20,33 +20,32 @@ func (e State) UpdateTerm(newTerm uint32) {
 }
 
 //VoteReply response to vote requests with an approval or deny
-func (e State) VoteReply(candidateID string, candidateTerm uint32, lastLogTerm uint32, lastLogIndex uint32) error {
-	if !e.voteDecision(candidateID, candidateTerm, lastLogIndex, lastLogTerm) {
+func (e State) VoteReply(c *raft.VoteRequest) (raft.VoteResponse, error) {
+	if !e.voteDecision(c) {
 		denyVote := raft.VoteResponse{
 			Term:        e.CurrentTerm,
 			VoteGranted: false,
 		}
-
-		return nil
+		return denyVote, nil
 	}
 
 	acceptVote := raft.VoteResponse{
-		Term:        candidateTerm,
+		Term:        c.Term,
 		VoteGranted: true,
 	}
-	e.UpdateTerm(candidateTerm)
-	return nil
+	e.UpdateTerm(c.Term)
+	return acceptVote, nil
 
 }
 
-func (e State) voteDecision(candidateID string, candidateTerm uint32, lastLogTerm uint32, lastLogIndex uint32) bool {
-	if e.CurrentTerm > candidateTerm {
+func (e State) voteDecision(c *raft.VoteRequest) bool {
+	if e.CurrentTerm > c.Term {
 		return false
 	}
 
-	if (e.VotedForID == nil || *e.VotedForID == candidateID) &&
-		lastLogIndex >= e.LastLogIndex &&
-		lastLogTerm >= e.LastLogIndex {
+	if (e.VotedForID == nil || *e.VotedForID == c.CandidateID) &&
+		c.LastLogIndex >= e.LastLogIndex &&
+		c.LastLogTerm >= e.LastLogIndex {
 		return true
 	}
 
