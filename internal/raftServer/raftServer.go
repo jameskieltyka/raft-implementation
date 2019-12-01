@@ -16,11 +16,11 @@ type RaftServer struct {
 	state election.State
 }
 
-func NewServer() *RaftServer {
-	return &RaftServer{}
+func NewServer() RaftServer {
+	return RaftServer{}
 }
 
-func (r *RaftServer) RequestVote(ctx context.Context, req *raft.VoteRequest) (*raft.VoteResponse, error) {
+func (r RaftServer) RequestVote(ctx context.Context, req *raft.VoteRequest) (*raft.VoteResponse, error) {
 	reply, err := r.state.VoteReply(req)
 	if err != nil {
 		return nil, status.Errorf(codes.Aborted, "an error occurred %v", err.Error())
@@ -28,6 +28,6 @@ func (r *RaftServer) RequestVote(ctx context.Context, req *raft.VoteRequest) (*r
 	return &reply, nil
 }
 
-func (r *RaftServer) AppendEntries(ctx context.Context, req *raft.EntryData) (*raft.EntryResults, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AppendEntries not implemented")
+func (r RaftServer) AppendEntries(ctx context.Context, req *raft.EntryData) (*raft.EntryResults, error) {
+	return nil, nil
 }

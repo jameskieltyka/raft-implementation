@@ -6,6 +6,7 @@ import (
 	"net"
 
 	raftserver "github.com/jkieltyka/raft-implementation/internal/raftServer"
+	"github.com/jkieltyka/raft-implementation/pkg/discovery"
 	raft "github.com/jkieltyka/raft-implementation/raftpb"
 	"google.golang.org/grpc"
 )
@@ -20,7 +21,10 @@ func main() {
 	if err != nil {
 		return
 	}
+
+	k8sclient := discovery.Kubernetes{}
+	fmt.Println(k8sclient.GetNodes("raft", "default"))
 	grpcServer := grpc.NewServer()
-	raft.RegisterRaftNodeServer(grpcServer, &raftserver.NewServer())
+	raft.RegisterRaftNodeServer(grpcServer, raftserver.NewServer())
 	grpcServer.Serve(lis)
 }
