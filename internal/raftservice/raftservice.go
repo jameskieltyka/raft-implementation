@@ -1,6 +1,8 @@
 package raftservice
 
 import (
+	"fmt"
+
 	"github.com/jkieltyka/raft-implementation/internal/raftclient"
 	"github.com/jkieltyka/raft-implementation/internal/raftserver"
 	"github.com/jkieltyka/raft-implementation/pkg/backoff"
@@ -27,13 +29,25 @@ func StartService() error {
 		raftClients = append(raftClients, cl)
 	}
 
+	//Start heartbeat client
+	//TODO this should send out an AppendEntries heartbeat if election state has the current leader id == to this node
+
 	//Start RandomBackoff
-	backoffSettings := backoff.NewBackoff(500, 1000)
+	backoffSettings := backoff.NewBackoff(500, 1500)
 	backoffTimer := backoffSettings.SetBackoff()
 
 	for {
 		select {
 		case <-backoffTimer.C:
+			//set new election backoff
+			backoffTimer = backoffSettings.SetBackoff()
+			//Send candidate message to nodes
+			accepted := raftClients.RequestVote(rs.State)
+			if accepted {
+				//TODO send append entries RPC to establish leadership
+
+				fmt.Println("leadership established")
+			}
 
 		case <-rs.Heartbeat:
 			backoffSettings.ResetBackoff(backoffTimer)

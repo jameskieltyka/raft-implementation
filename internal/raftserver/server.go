@@ -44,7 +44,6 @@ func (r RaftServer) Start() error {
 }
 
 func (r RaftServer) RequestVote(ctx context.Context, req *raft.VoteRequest) (*raft.VoteResponse, error) {
-	r.Heartbeat <- true
 	reply, err := r.State.VoteReply(req)
 	if err != nil {
 		return nil, status.Errorf(codes.Aborted, "an error occurred %v", err.Error())
@@ -53,5 +52,6 @@ func (r RaftServer) RequestVote(ctx context.Context, req *raft.VoteRequest) (*ra
 }
 
 func (r RaftServer) AppendEntries(ctx context.Context, req *raft.EntryData) (*raft.EntryResults, error) {
+	r.Heartbeat <- true
 	return nil, nil
 }
