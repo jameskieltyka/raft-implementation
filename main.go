@@ -17,10 +17,6 @@ var (
 
 func main() {
 	flag.Parse()
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
-	if err != nil {
-		return
-	}
 
 	k8sclient := discovery.Kubernetes{}
 	fmt.Println(k8sclient.GetNodes("raft", "default"))
