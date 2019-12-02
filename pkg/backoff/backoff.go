@@ -24,7 +24,7 @@ func NewBackoff(min int, max int) *Config {
 // SetBackoff sets a randomized backoff timer and returns a pointer to the timer
 func (b *Config) SetBackoff() *time.Timer {
 	//backoff duration
-	backoffMS := rand.Intn(b.MinBackoff-b.MaxBackoff) + b.MinBackoff
+	backoffMS := rand.Intn(b.MaxBackoff-b.MinBackoff) + b.MinBackoff
 	return time.NewTimer(time.Duration(backoffMS) * time.Millisecond)
 
 }

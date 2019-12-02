@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"os"
 
 	"github.com/jkieltyka/raft-implementation/pkg/election"
 	"google.golang.org/grpc"
@@ -52,6 +53,10 @@ func (r RaftServer) RequestVote(ctx context.Context, req *raft.VoteRequest) (*ra
 }
 
 func (r RaftServer) AppendEntries(ctx context.Context, req *raft.EntryData) (*raft.EntryResults, error) {
+	if req.Term > r.State.CurrentTerm && r.State.CurrentLeaderID == os.Getenv("POD_NAME") {
+		r.State.CurrentLeaderID = req.LeaderID
+		r.State.CurrentTerm = req.Term
+	}
 	r.Heartbeat <- true
 	return nil, nil
 }

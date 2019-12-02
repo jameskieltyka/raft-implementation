@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,8 +36,11 @@ func (k *Kubernetes) GetNodes(name, namespace string) []string {
 	pods, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: selectorString})
 	result := []string{}
 
+	currentIP := os.Getenv("POD_IP")
 	for _, pod := range pods.Items {
-		result = append(result, pod.Status.PodIP)
+		if pod.Status.PodIP != currentIP {
+			result = append(result, pod.Status.PodIP)
+		}
 	}
 
 	return result

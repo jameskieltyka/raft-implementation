@@ -4,13 +4,14 @@ import (
 	raft "github.com/jkieltyka/raft-implementation/raftpb"
 )
 
-//State - internal state for current term election info
+//State - state for current term election info
 type State struct {
 	CurrentLeaderID string
 	VotedForID      *string
 	CurrentTerm     uint32
 	LastLogIndex    uint32
 	LastLogTerm     uint32
+	CommitIndex     uint32
 }
 
 //UpdateTerm updates internal term number and clears any previous vote information
