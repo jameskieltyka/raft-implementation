@@ -34,15 +34,16 @@ func (k *Kubernetes) GetNodes(name, namespace string) []string {
 	selectors := deploy.Spec.Selector.MatchLabels
 	selectorString := joinSelectors(selectors)
 	pods, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: selectorString})
-	result := []string{}
+
+	result := make([]string, 0, len(pods.Items)-1)
 
 	currentIP := os.Getenv("POD_IP")
-	for _, pod := range pods.Items {
-		if pod.Status.PodIP != currentIP {
-			result = append(result, pod.Status.PodIP)
+	for i := range pods.Items {
+		if pods.Items[i].Status.PodIP != currentIP {
+			result = append(result, pods.Items[i].Status.PodIP)
 		}
 	}
-
+	fmt.Println(result)
 	return result
 }
 

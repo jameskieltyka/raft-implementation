@@ -3,7 +3,6 @@ package raftserver
 import (
 	"context"
 	"flag"
-	"fmt"
 	"net"
 	"os"
 
@@ -22,19 +21,20 @@ var (
 type RaftServer struct {
 	raft.UnimplementedRaftNodeServer
 	Logs      []int
-	State     election.State
+	State     *election.State
 	Heartbeat chan bool
 }
 
 func NewServer() RaftServer {
 	return RaftServer{
 		Logs:      make([]int, 0, 1),
+		State:     &election.State{},
 		Heartbeat: make(chan bool),
 	}
 }
 
 func (r RaftServer) Start() error {
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
+	lis, err := net.Listen("tcp", ":8000") //fmt.Sprintf("localhost:%d", *port))
 	if err != nil {
 		return err
 	}
@@ -58,5 +58,5 @@ func (r RaftServer) AppendEntries(ctx context.Context, req *raft.EntryData) (*ra
 		r.State.CurrentTerm = req.Term
 	}
 	r.Heartbeat <- true
-	return nil, nil
+	return &raft.EntryResults{}, nil
 }

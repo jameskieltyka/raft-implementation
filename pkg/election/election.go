@@ -1,6 +1,8 @@
 package election
 
 import (
+	"fmt"
+
 	raft "github.com/jkieltyka/raft-implementation/raftpb"
 )
 
@@ -47,6 +49,8 @@ func (e State) voteDecision(c *raft.VoteRequest) bool {
 	if (e.VotedForID == nil || *e.VotedForID == c.CandidateID) &&
 		c.LastLogIndex >= e.LastLogIndex &&
 		c.LastLogTerm >= e.LastLogIndex {
+		e.VotedForID = &c.CandidateID
+		fmt.Println("voting to accept: ", c.CandidateID)
 		return true
 	}
 
