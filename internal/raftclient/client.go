@@ -3,6 +3,7 @@ package raftclient
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/jkieltyka/raft-implementation/pkg/election"
@@ -25,9 +26,9 @@ func CreateClient(serverAddr string) (raft.RaftNodeClient, error) {
 }
 
 func (c *ClientList) RequestVote(state *election.State) bool {
-	positiveVotes := 0
+	positiveVotes := 1
 	vote := &raft.VoteRequest{
-		Term:         state.CurrentTerm + 1,
+		Term:         state.CurrentTerm,
 		CandidateID:  os.Getenv("POD_NAME"),
 		LastLogIndex: state.LastLogIndex,
 		LastLogTerm:  state.LastLogTerm,
@@ -45,7 +46,8 @@ func (c *ClientList) RequestVote(state *election.State) bool {
 		}
 	}
 
-	if positiveVotes > len(*c)/2 {
+	fmt.Println("votes received: ", positiveVotes)
+	if positiveVotes > int(math.Ceil(float64(len(*c))/2.0)) {
 		return true
 	}
 	return false
@@ -63,9 +65,10 @@ func (c *ClientList) SendHeartbeat(state *election.State) {
 
 	for _, addr := range *c {
 		cl, _ := CreateClient(addr)
-		_, err := cl.AppendEntries(context.Background(), heartbeat)
+		res, err := cl.AppendEntries(context.Background(), heartbeat)
 		if err != nil {
 			fmt.Println("error :", err.Error())
 		}
+		fmt.Println("hearbeat response: ", *res)
 	}
 }

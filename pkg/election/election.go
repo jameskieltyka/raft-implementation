@@ -8,6 +8,7 @@ import (
 
 //State - state for current term election info
 type State struct {
+	Role            string
 	CurrentLeaderID string
 	VotedForID      *string
 	CurrentTerm     uint32
@@ -17,18 +18,19 @@ type State struct {
 }
 
 //UpdateTerm updates internal term number and clears any previous vote information
-func (e State) UpdateTerm(newTerm uint32) {
+func (e *State) UpdateTerm(newTerm uint32) {
 	e.CurrentTerm = newTerm
 	e.VotedForID = nil
 }
 
 //VoteReply response to vote requests with an approval or deny
-func (e State) VoteReply(c *raft.VoteRequest) (raft.VoteResponse, error) {
+func (e *State) VoteReply(c *raft.VoteRequest) (raft.VoteResponse, error) {
 	if !e.voteDecision(c) {
 		denyVote := raft.VoteResponse{
 			Term:        e.CurrentTerm,
 			VoteGranted: false,
 		}
+		fmt.Println("deny vote ", c.CandidateID)
 		return denyVote, nil
 	}
 
@@ -36,12 +38,12 @@ func (e State) VoteReply(c *raft.VoteRequest) (raft.VoteResponse, error) {
 		Term:        c.Term,
 		VoteGranted: true,
 	}
-	e.UpdateTerm(c.Term)
+	fmt.Println("accept vote ", c.CandidateID)
 	return acceptVote, nil
 
 }
 
-func (e State) voteDecision(c *raft.VoteRequest) bool {
+func (e *State) voteDecision(c *raft.VoteRequest) bool {
 	if e.CurrentTerm > c.Term {
 		return false
 	}

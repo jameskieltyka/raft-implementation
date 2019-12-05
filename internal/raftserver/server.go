@@ -3,8 +3,8 @@ package raftserver
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net"
-	"os"
 
 	"github.com/jkieltyka/raft-implementation/pkg/election"
 	"google.golang.org/grpc"
@@ -25,15 +25,17 @@ type RaftServer struct {
 	Heartbeat chan bool
 }
 
-func NewServer() RaftServer {
-	return RaftServer{
-		Logs:      make([]int, 0, 1),
-		State:     &election.State{},
+func NewServer() *RaftServer {
+	return &RaftServer{
+		Logs: make([]int, 0, 1),
+		State: &election.State{
+			Role: "follower",
+		},
 		Heartbeat: make(chan bool),
 	}
 }
 
-func (r RaftServer) Start() error {
+func (r *RaftServer) Start() error {
 	lis, err := net.Listen("tcp", ":8000") //fmt.Sprintf("localhost:%d", *port))
 	if err != nil {
 		return err
@@ -44,18 +46,21 @@ func (r RaftServer) Start() error {
 	return nil
 }
 
-func (r RaftServer) RequestVote(ctx context.Context, req *raft.VoteRequest) (*raft.VoteResponse, error) {
+func (r *RaftServer) RequestVote(ctx context.Context, req *raft.VoteRequest) (*raft.VoteResponse, error) {
+	fmt.Println(*req)
 	reply, err := r.State.VoteReply(req)
+	fmt.Println(*r.State)
 	if err != nil {
 		return nil, status.Errorf(codes.Aborted, "an error occurred %v", err.Error())
 	}
 	return &reply, nil
 }
 
-func (r RaftServer) AppendEntries(ctx context.Context, req *raft.EntryData) (*raft.EntryResults, error) {
-	if req.Term > r.State.CurrentTerm && r.State.CurrentLeaderID == os.Getenv("POD_NAME") {
+func (r *RaftServer) AppendEntries(ctx context.Context, req *raft.EntryData) (*raft.EntryResults, error) {
+	if req.Term >= r.State.CurrentTerm && req.LeaderID != r.State.CurrentLeaderID {
 		r.State.CurrentLeaderID = req.LeaderID
 		r.State.CurrentTerm = req.Term
+		r.State.Role = "follower"
 	}
 	r.Heartbeat <- true
 	return &raft.EntryResults{}, nil
