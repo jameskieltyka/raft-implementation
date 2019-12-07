@@ -32,7 +32,7 @@ func StartService() error {
 	for {
 		select {
 		case <-heartbeatTimer.C:
-			if rs.State.Role == "leader" {
+			if rs.Role == "leader" {
 				raftClients.SendHeartbeat(rs.State)
 				rs.Heartbeat <- true
 				heartbeatTimer = time.NewTimer(500 * time.Millisecond)
@@ -41,16 +41,16 @@ func StartService() error {
 			//set new election backoff
 			backoffTimer = backoffSettings.SetBackoff()
 			//Send candidate message to nodes
-			if rs.State.Role == "follower" || rs.State.Role == "leader" {
-				rs.State.Role = "candidate"
+			if rs.Role == "follower" || rs.Role == "leader" {
+				rs.Role = "candidate"
 				rs.RoleChange <- "candidate"
 				rs.State.CurrentTerm++
 			}
 			accepted := raftClients.RequestVote(rs.State)
 			if accepted {
-				rs.State.Role = "leader"
+				rs.Role = "leader"
 				rs.RoleChange <- "leader"
-				rs.State.CurrentLeaderID = os.Getenv("POD_NAME")
+				rs.LeaderID = os.Getenv("POD_NAME")
 				raftClients.SendHeartbeat(rs.State)
 				rs.Heartbeat <- true
 				heartbeatTimer = time.NewTimer(500 * time.Millisecond)

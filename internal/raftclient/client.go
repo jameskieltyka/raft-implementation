@@ -6,7 +6,7 @@ import (
 	"math"
 	"os"
 
-	"github.com/jkieltyka/raft-implementation/pkg/election"
+	"github.com/jkieltyka/raft-implementation/pkg/state"
 	raft "github.com/jkieltyka/raft-implementation/raftpb"
 	"google.golang.org/grpc"
 )
@@ -25,13 +25,18 @@ func CreateClient(serverAddr string) (raft.RaftNodeClient, error) {
 	return raft.NewRaftNodeClient(conn), err
 }
 
-func (c *ClientList) RequestVote(state *election.State) bool {
+func (c *ClientList) RequestVote(state *state.State) bool {
 	positiveVotes := 1
+	var lastLogTerm uint32 = 0
+	if len(state.Log) != 0 {
+		lastLogTerm = state.Log[state.LastApplied].Term
+	}
+
 	vote := &raft.VoteRequest{
 		Term:         state.CurrentTerm,
 		CandidateID:  os.Getenv("POD_NAME"),
-		LastLogIndex: state.LastLogIndex,
-		LastLogTerm:  state.LastLogTerm,
+		LastLogIndex: state.LastApplied,
+		LastLogTerm:  lastLogTerm,
 	}
 
 	for _, addr := range *c {
@@ -52,12 +57,13 @@ func (c *ClientList) RequestVote(state *election.State) bool {
 	return false
 }
 
-func (c *ClientList) SendHeartbeat(state *election.State) {
+func (c *ClientList) SendHeartbeat(state *state.State) {
+
 	heartbeat := &raft.EntryData{
 		Term:         state.CurrentTerm,
 		LeaderID:     os.Getenv("POD_NAME"),
-		PrevLogIndex: state.LastLogIndex,
-		PrevLogTerm:  state.LastLogTerm,
+		PrevLogIndex: state.LastApplied,
+		PrevLogTerm:  state.GetLastLogTerm(),
 		Entries:      []*raft.Entry{},
 		LeaderCommit: state.CommitIndex,
 	}
@@ -70,3 +76,22 @@ func (c *ClientList) SendHeartbeat(state *election.State) {
 		}
 	}
 }
+
+// func (c *ClientList) SendLog(state *state.State) {
+// 	heartbeat := &raft.EntryData{
+// 		Term:         state.CurrentTerm,
+// 		LeaderID:     os.Getenv("POD_NAME"),
+// 		PrevLogIndex: state.LastLogIndex,
+// 		PrevLogTerm:  state.LastLogTerm,
+// 		Entries:      []*raft.Entry{},
+// 		LeaderCommit: state.CommitIndex,
+// 	}
+
+// 	for _, addr := range *c {
+// 		cl, _ := CreateClient(addr)
+// 		_, err := cl.AppendEntries(context.Background(), heartbeat)
+// 		if err != nil {
+// 			fmt.Println("error :", err.Error())
+// 		}
+// 	}
+// }

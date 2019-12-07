@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"github.com/jkieltyka/raft-implementation/pkg/election"
+	"github.com/jkieltyka/raft-implementation/pkg/state"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -20,18 +21,19 @@ var (
 
 type RaftServer struct {
 	raft.UnimplementedRaftNodeServer
-	Logs       []int
-	State      *election.State
+	State      *state.State
+	Role       string
 	RoleChange chan string
 	Heartbeat  chan bool
+	LeaderID   string
 }
 
 func NewServer() *RaftServer {
 	return &RaftServer{
-		Logs: make([]int, 0, 1),
-		State: &election.State{
-			Role: "follower",
+		State: &state.State{
+			Log: make([]state.Log, 0, 1),
 		},
+		Role:       "follower",
 		RoleChange: make(chan string, 5),
 		Heartbeat:  make(chan bool, 5),
 	}
@@ -50,7 +52,7 @@ func (r *RaftServer) Start() error {
 }
 
 func (r *RaftServer) RequestVote(ctx context.Context, req *raft.VoteRequest) (*raft.VoteResponse, error) {
-	reply, err := r.State.VoteReply(req)
+	reply, err := election.VoteReply(req, r.State)
 	if err != nil {
 		return nil, status.Errorf(codes.Aborted, "an error occurred %v", err.Error())
 	}
@@ -58,13 +60,24 @@ func (r *RaftServer) RequestVote(ctx context.Context, req *raft.VoteRequest) (*r
 }
 
 func (r *RaftServer) AppendEntries(ctx context.Context, req *raft.EntryData) (*raft.EntryResults, error) {
-	if req.Term >= r.State.CurrentTerm && req.LeaderID != r.State.CurrentLeaderID {
-		r.State.CurrentLeaderID = req.LeaderID
+	if (req.Term < r.State.CurrentTerm) || (r.State.LastApplied != req.PrevLogIndex) {
+		return &raft.EntryResults{
+			Term:    req.Term,
+			Success: false,
+		}, nil
+	}
+
+	if req.Term >= r.State.CurrentTerm && req.LeaderID != r.LeaderID {
+		r.LeaderID = req.LeaderID
 		r.State.CurrentTerm = req.Term
-		r.State.Role = "follower"
+		r.Role = "follower"
 		r.RoleChange <- "follower"
 	}
-	r.Heartbeat <- true
+
+	if len(req.Entries) == 0 {
+		r.Heartbeat <- true
+	}
+
 	return &raft.EntryResults{}, nil
 }
 
