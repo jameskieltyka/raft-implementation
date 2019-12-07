@@ -1,11 +1,13 @@
 package state
 
+import raft "github.com/jkieltyka/raft-implementation/raftpb"
+
 //State - state for current term election info
 type State struct {
 	//Persistent State
 	CurrentTerm uint32
-	VoteFor     *string
-	Log         []Log
+	VoteForID   *string
+	Log         []raft.Entry
 
 	//Volatile State
 	CommitIndex uint32
@@ -15,11 +17,6 @@ type State struct {
 	//Volatile Leader State
 	NextIndex  map[string]uint32
 	MatchIndex map[string]uint32
-}
-
-type Log struct {
-	Term uint32
-	Data int
 }
 
 func (s *State) ResetLeaderState(nodes []string) {

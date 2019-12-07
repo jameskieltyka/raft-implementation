@@ -77,21 +77,23 @@ func (c *ClientList) SendHeartbeat(state *state.State) {
 	}
 }
 
-// func (c *ClientList) SendLog(state *state.State) {
-// 	heartbeat := &raft.EntryData{
-// 		Term:         state.CurrentTerm,
-// 		LeaderID:     os.Getenv("POD_NAME"),
-// 		PrevLogIndex: state.LastLogIndex,
-// 		PrevLogTerm:  state.LastLogTerm,
-// 		Entries:      []*raft.Entry{},
-// 		LeaderCommit: state.CommitIndex,
-// 	}
+func (c *ClientList) SendLog(state *state.State, entry *raft.Entry) {
+	heartbeat := &raft.EntryData{
+		Term:         state.CurrentTerm,
+		LeaderID:     os.Getenv("POD_NAME"),
+		PrevLogIndex: state.LastApplied,
+		PrevLogTerm:  state.GetLastLogTerm(),
+		Entries:      []*raft.Entry{entry},
+		LeaderCommit: state.CommitIndex,
+	}
 
-// 	for _, addr := range *c {
-// 		cl, _ := CreateClient(addr)
-// 		_, err := cl.AppendEntries(context.Background(), heartbeat)
-// 		if err != nil {
-// 			fmt.Println("error :", err.Error())
-// 		}
-// 	}
-// }
+	state.Log = append(state.Log, *entry)
+
+	for _, addr := range *c {
+		cl, _ := CreateClient(addr)
+		_, err := cl.AppendEntries(context.Background(), heartbeat)
+		if err != nil {
+			fmt.Println("error :", err.Error())
+		}
+	}
+}

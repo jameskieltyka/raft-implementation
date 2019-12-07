@@ -32,5 +32,6 @@ message EntryResults {
 }
 
 message Entry {
-    string value = 1;
+    uint32 term = 1;
+    string value = 2;
 }
