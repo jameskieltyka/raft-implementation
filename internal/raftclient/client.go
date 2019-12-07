@@ -46,7 +46,6 @@ func (c *ClientList) RequestVote(state *election.State) bool {
 		}
 	}
 
-	fmt.Println("votes received: ", positiveVotes)
 	if positiveVotes > int(math.Ceil(float64(len(*c))/2.0)) {
 		return true
 	}
@@ -65,10 +64,9 @@ func (c *ClientList) SendHeartbeat(state *election.State) {
 
 	for _, addr := range *c {
 		cl, _ := CreateClient(addr)
-		res, err := cl.AppendEntries(context.Background(), heartbeat)
+		_, err := cl.AppendEntries(context.Background(), heartbeat)
 		if err != nil {
 			fmt.Println("error :", err.Error())
 		}
-		fmt.Println("hearbeat response: ", *res)
 	}
 }

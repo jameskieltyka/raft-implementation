@@ -1,6 +1,9 @@
 package backoff
 
 import (
+	"crypto/md5"
+	"encoding/binary"
+	"io"
 	"math/rand"
 	"time"
 )
@@ -14,7 +17,12 @@ type Config struct {
 // NewBackoff instantiates a new backoff struct
 // min: the minimum backoff time
 // max: the maximum backoff time
-func NewBackoff(min int, max int) *Config {
+func NewBackoff(min int, max int, node string) *Config {
+	h := md5.New()
+	io.WriteString(h, node)
+	var seed uint64 = binary.BigEndian.Uint64(h.Sum(nil))
+	rand.Seed(int64(seed))
+
 	return &Config{
 		MinBackoff: min,
 		MaxBackoff: max,

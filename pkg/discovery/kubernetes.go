@@ -43,7 +43,7 @@ func (k *Kubernetes) GetNodes(name, namespace string) []string {
 			result = append(result, pods.Items[i].Status.PodIP)
 		}
 	}
-	fmt.Println(result)
+
 	return result
 }
 

@@ -1,7 +1,6 @@
 package raftservice
 
 import (
-	"fmt"
 	"os"
 	"time"
 
@@ -24,10 +23,10 @@ func StartService() error {
 	var raftClients raftclient.ClientList = nodes
 
 	//Start RandomBackoff
-	backoffSettings := backoff.NewBackoff(2000, 5000)
+	backoffSettings := backoff.NewBackoff(2000, 7000, os.Getenv("POD_NAME"))
 	backoffTimer := backoffSettings.SetBackoff()
 
-	heartbeatTimer := time.NewTimer(100 * time.Millisecond)
+	heartbeatTimer := time.NewTimer(500 * time.Millisecond)
 	heartbeatTimer.Stop()
 
 	for {
@@ -39,19 +38,18 @@ func StartService() error {
 				heartbeatTimer = time.NewTimer(500 * time.Millisecond)
 			}
 		case <-backoffTimer.C:
-			//TODO FIX ISSUE WWHERE BACKOFF IS OCCURING ON LEADER DUE TO NO HEARBEAT
-			fmt.Println("starting election ", rs.State.Role)
 			//set new election backoff
 			backoffTimer = backoffSettings.SetBackoff()
 			//Send candidate message to nodes
 			if rs.State.Role == "follower" || rs.State.Role == "leader" {
 				rs.State.Role = "candidate"
+				rs.RoleChange <- "candidate"
 				rs.State.CurrentTerm++
 			}
 			accepted := raftClients.RequestVote(rs.State)
 			if accepted {
-				fmt.Println("leadership established term: ", rs.State.CurrentTerm)
 				rs.State.Role = "leader"
+				rs.RoleChange <- "leader"
 				rs.State.CurrentLeaderID = os.Getenv("POD_NAME")
 				raftClients.SendHeartbeat(rs.State)
 				rs.Heartbeat <- true
@@ -60,7 +58,6 @@ func StartService() error {
 			rs.State.VotedForID = nil
 
 		case <-rs.Heartbeat:
-			fmt.Println("received heartbeat")
 			backoffSettings.ResetBackoff(backoffTimer)
 		}
 	}

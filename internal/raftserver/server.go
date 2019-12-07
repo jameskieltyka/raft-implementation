@@ -20,9 +20,10 @@ var (
 
 type RaftServer struct {
 	raft.UnimplementedRaftNodeServer
-	Logs      []int
-	State     *election.State
-	Heartbeat chan bool
+	Logs       []int
+	State      *election.State
+	RoleChange chan string
+	Heartbeat  chan bool
 }
 
 func NewServer() *RaftServer {
@@ -31,25 +32,25 @@ func NewServer() *RaftServer {
 		State: &election.State{
 			Role: "follower",
 		},
-		Heartbeat: make(chan bool),
+		RoleChange: make(chan string, 5),
+		Heartbeat:  make(chan bool, 5),
 	}
 }
 
 func (r *RaftServer) Start() error {
-	lis, err := net.Listen("tcp", ":8000") //fmt.Sprintf("localhost:%d", *port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		return err
 	}
 	grpcServer := grpc.NewServer()
 	raft.RegisterRaftNodeServer(grpcServer, r)
+	go r.MonitorStateChange()
 	grpcServer.Serve(lis)
 	return nil
 }
 
 func (r *RaftServer) RequestVote(ctx context.Context, req *raft.VoteRequest) (*raft.VoteResponse, error) {
-	fmt.Println(*req)
 	reply, err := r.State.VoteReply(req)
-	fmt.Println(*r.State)
 	if err != nil {
 		return nil, status.Errorf(codes.Aborted, "an error occurred %v", err.Error())
 	}
@@ -61,7 +62,17 @@ func (r *RaftServer) AppendEntries(ctx context.Context, req *raft.EntryData) (*r
 		r.State.CurrentLeaderID = req.LeaderID
 		r.State.CurrentTerm = req.Term
 		r.State.Role = "follower"
+		r.RoleChange <- "follower"
 	}
 	r.Heartbeat <- true
 	return &raft.EntryResults{}, nil
+}
+
+func (r *RaftServer) MonitorStateChange() {
+	for {
+		select {
+		case s := <-r.RoleChange:
+			fmt.Printf("changing role to %s, term %d\n", s, r.State.CurrentTerm)
+		}
+	}
 }

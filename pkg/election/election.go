@@ -1,8 +1,6 @@
 package election
 
 import (
-	"fmt"
-
 	raft "github.com/jkieltyka/raft-implementation/raftpb"
 )
 
@@ -10,6 +8,7 @@ import (
 type State struct {
 	Role            string
 	CurrentLeaderID string
+	LeaderIP        string
 	VotedForID      *string
 	CurrentTerm     uint32
 	LastLogIndex    uint32
@@ -30,7 +29,6 @@ func (e *State) VoteReply(c *raft.VoteRequest) (raft.VoteResponse, error) {
 			Term:        e.CurrentTerm,
 			VoteGranted: false,
 		}
-		fmt.Println("deny vote ", c.CandidateID)
 		return denyVote, nil
 	}
 
@@ -38,7 +36,6 @@ func (e *State) VoteReply(c *raft.VoteRequest) (raft.VoteResponse, error) {
 		Term:        c.Term,
 		VoteGranted: true,
 	}
-	fmt.Println("accept vote ", c.CandidateID)
 	return acceptVote, nil
 
 }
@@ -52,7 +49,6 @@ func (e *State) voteDecision(c *raft.VoteRequest) bool {
 		c.LastLogIndex >= e.LastLogIndex &&
 		c.LastLogTerm >= e.LastLogIndex {
 		e.VotedForID = &c.CandidateID
-		fmt.Println("voting to accept: ", c.CandidateID)
 		return true
 	}
 
