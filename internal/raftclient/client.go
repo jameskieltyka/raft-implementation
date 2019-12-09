@@ -78,7 +78,16 @@ func (c *ClientList) SendHeartbeat(state *state.State) {
 }
 
 func (c *ClientList) SendLog(state *state.State, entry *raft.Entry) {
-	heartbeat := &raft.EntryData{
+	state.Log = append(state.Log, *entry)
+
+	for _, addr := range *c {
+		cl, _ := CreateClient(addr)
+		AppendLogs(cl, state, entry)
+	}
+}
+
+func AppendLogs(cl raft.RaftNodeClient, state *state.State, entry *raft.Entry) {
+	logs := &raft.EntryData{
 		Term:         state.CurrentTerm,
 		LeaderID:     os.Getenv("POD_NAME"),
 		PrevLogIndex: state.LastApplied,
@@ -86,14 +95,19 @@ func (c *ClientList) SendLog(state *state.State, entry *raft.Entry) {
 		Entries:      []*raft.Entry{entry},
 		LeaderCommit: state.CommitIndex,
 	}
-
-	state.Log = append(state.Log, *entry)
-
-	for _, addr := range *c {
-		cl, _ := CreateClient(addr)
-		_, err := cl.AppendEntries(context.Background(), heartbeat)
-		if err != nil {
-			fmt.Println("error :", err.Error())
-		}
+	res, _ := cl.AppendEntries(context.Background(), logs)
+	nextIndex := state.LastApplied
+	for !res.Success {
+		nextIndex--
+		InsertLog(logs.Entries, &state.Log[nextIndex])
+		logs.PrevLogTerm = state.Log[nextIndex].Term
+		logs.PrevLogIndex = nextIndex
+		res, _ = cl.AppendEntries(context.Background(), logs)
 	}
+}
+
+func InsertLog(entries []*raft.Entry, new *raft.Entry) {
+	entries = append(entries, &raft.Entry{})
+	copy(entries[1:], entries[0:])
+	entries[0] = new
 }
