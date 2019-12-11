@@ -31,7 +31,9 @@ type RaftServer struct {
 func NewServer() *RaftServer {
 	return &RaftServer{
 		State: &state.State{
-			Log: make([]raft.Entry, 0, 1),
+			Log:        make([]raft.Entry, 0, 1),
+			NextIndex:  make(map[string]uint32),
+			MatchIndex: make(map[string]uint32),
 		},
 		Role:       "follower",
 		RoleChange: make(chan string, 5),
@@ -66,17 +68,21 @@ func (r *RaftServer) AppendEntries(ctx context.Context, req *raft.EntryData) (*r
 	}
 
 	if (req.Term < r.State.CurrentTerm) || (r.State.LastApplied < req.PrevLogIndex) ||
-		r.State.Log[req.PrevLogIndex].Term != req.GetPrevLogTerm() {
+		r.State.GetLogTerm(req.GetPrevLogTerm()) != req.GetPrevLogTerm() {
+		fmt.Println(r.State.GetLogTerm(req.GetPrevLogTerm()), req.GetPrevLogTerm())
+		fmt.Println("returning failure", req.LeaderID)
 		return EntryFailure(r.State.CurrentTerm), nil
 	}
 
 	for i, entry := range req.Entries {
-		if uint32(len(r.State.Log)) < r.State.LastApplied+uint32(i) {
+		if r.State.LastApplied == req.GetPrevLogIndex()+uint32(i) {
+			fmt.Println("adding new entry")
 			r.State.Log = append(r.State.Log, *entry)
-			r.State.LastApplied = r.State.LastApplied + uint32(i)
+			r.State.LastApplied = r.State.LastApplied + uint32(i) + 1
 		} else {
 			currentEntry := r.State.Log[r.State.LastApplied+uint32(i)]
 			if currentEntry.Term != entry.Term {
+				fmt.Println("replacing old entry")
 				r.State.Log[r.State.LastApplied+uint32(i)] = *entry
 				r.State.Log = r.State.Log[0 : r.State.LastApplied+uint32(i)]
 				r.State.LastApplied = r.State.LastApplied + uint32(i)
@@ -87,7 +93,7 @@ func (r *RaftServer) AppendEntries(ctx context.Context, req *raft.EntryData) (*r
 
 	r.State.CommitIndex = MinCommitIndex(req.LeaderCommit, r.State.CommitIndex)
 
-	return &raft.EntryResults{}, nil
+	return &raft.EntryResults{Term: r.State.CurrentTerm, Success: true}, nil
 }
 
 func (r *RaftServer) MonitorStateChange() {

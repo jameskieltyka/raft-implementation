@@ -33,3 +33,11 @@ func (s *State) GetLastLogTerm() uint32 {
 	}
 	return lastLogTerm
 }
+
+func (s *State) GetLogTerm(index uint32) uint32 {
+	if len(s.Log) == 0 {
+		return 0
+	}
+
+	return s.Log[index].Term
+}

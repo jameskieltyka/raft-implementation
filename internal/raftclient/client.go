@@ -29,7 +29,7 @@ func (c *ClientList) RequestVote(state *state.State) bool {
 	positiveVotes := 1
 	var lastLogTerm uint32 = 0
 	if len(state.Log) != 0 {
-		lastLogTerm = state.Log[state.LastApplied].Term
+		lastLogTerm = state.Log[state.LastApplied-1].Term
 	}
 
 	vote := &raft.VoteRequest{
@@ -78,32 +78,63 @@ func (c *ClientList) SendHeartbeat(state *state.State) {
 }
 
 func (c *ClientList) SendLog(state *state.State, entry *raft.Entry) {
+
+	prevLogTerm := state.GetLastLogTerm()
 	state.Log = append(state.Log, *entry)
 
 	for _, addr := range *c {
 		cl, _ := CreateClient(addr)
-		AppendLogs(cl, state, entry)
+		AppendLogs(cl, addr, prevLogTerm, state, entry)
+	}
+
+	minMatchIndex := uint32(math.MaxUint32)
+	for _, match := range state.MatchIndex {
+		if minMatchIndex > match {
+			minMatchIndex = match
+		}
+	}
+
+	if state.CommitIndex < minMatchIndex {
+		fmt.Println("updating commit index")
+		state.CommitIndex = minMatchIndex
 	}
 }
 
-func AppendLogs(cl raft.RaftNodeClient, state *state.State, entry *raft.Entry) {
-	logs := &raft.EntryData{
-		Term:         state.CurrentTerm,
-		LeaderID:     os.Getenv("POD_NAME"),
-		PrevLogIndex: state.LastApplied,
-		PrevLogTerm:  state.GetLastLogTerm(),
-		Entries:      []*raft.Entry{entry},
-		LeaderCommit: state.CommitIndex,
+func AppendLogs(cl raft.RaftNodeClient, addr string, prevLogTerm uint32, state *state.State, entry *raft.Entry) {
+	nextIndex := state.NextIndex[addr]
+	fmt.Println(nextIndex)
+	if state.LastApplied >= nextIndex {
+		logs := &raft.EntryData{
+			Term:         state.CurrentTerm,
+			LeaderID:     os.Getenv("POD_NAME"),
+			PrevLogIndex: state.LastApplied,
+			PrevLogTerm:  prevLogTerm,
+			Entries:      []*raft.Entry{entry},
+			LeaderCommit: state.CommitIndex,
+		}
+		res, err := cl.AppendEntries(context.Background(), logs)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		nextIndex := state.LastApplied
+		fmt.Println(state.LastApplied)
+		fmt.Println(res, res.Success)
+		for !res.Success {
+			if nextIndex == 0 {
+				return
+			}
+			nextIndex--
+			InsertLog(logs.Entries, &state.Log[nextIndex])
+			logs.PrevLogTerm = state.Log[nextIndex].Term
+			logs.PrevLogIndex = nextIndex
+			res, _ = cl.AppendEntries(context.Background(), logs)
+		}
+		state.NextIndex[addr] = nextIndex + 1
+		state.MatchIndex[addr] = nextIndex
+
 	}
-	res, _ := cl.AppendEntries(context.Background(), logs)
-	nextIndex := state.LastApplied
-	for !res.Success {
-		nextIndex--
-		InsertLog(logs.Entries, &state.Log[nextIndex])
-		logs.PrevLogTerm = state.Log[nextIndex].Term
-		logs.PrevLogIndex = nextIndex
-		res, _ = cl.AppendEntries(context.Background(), logs)
-	}
+
 }
 
 func InsertLog(entries []*raft.Entry, new *raft.Entry) {

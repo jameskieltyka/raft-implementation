@@ -8,6 +8,7 @@ import (
 	"github.com/jkieltyka/raft-implementation/internal/raftserver"
 	"github.com/jkieltyka/raft-implementation/pkg/backoff"
 	"github.com/jkieltyka/raft-implementation/pkg/discovery"
+	raft "github.com/jkieltyka/raft-implementation/raftpb"
 )
 
 func StartService() error {
@@ -36,6 +37,10 @@ func StartService() error {
 				raftClients.SendHeartbeat(rs.State)
 				rs.Heartbeat <- true
 				heartbeatTimer = time.NewTimer(500 * time.Millisecond)
+				raftClients.SendLog(rs.State, &raft.Entry{
+					Term:  rs.State.CurrentTerm,
+					Value: "test",
+				})
 			}
 		case <-backoffTimer.C:
 			//set new election backoff
