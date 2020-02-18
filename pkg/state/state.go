@@ -29,7 +29,7 @@ func (s *State) ResetLeaderState(nodes []string) {
 func (s *State) GetLastLogTerm() uint32 {
 	var lastLogTerm uint32 = 0
 	if len(s.Log) != 0 {
-		lastLogTerm = s.Log[s.LastApplied].Term
+		lastLogTerm = s.Log[s.LastApplied-1].Term
 	}
 	return lastLogTerm
 }

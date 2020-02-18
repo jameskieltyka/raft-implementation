@@ -29,7 +29,7 @@ func (c *ClientList) RequestVote(state *state.State) bool {
 	positiveVotes := 1
 	var lastLogTerm uint32 = 0
 	if len(state.Log) != 0 {
-		lastLogTerm = state.Log[state.LastApplied-1].Term
+		lastLogTerm = state.Log[state.LastApplied].Term
 	}
 
 	vote := &raft.VoteRequest{
@@ -81,6 +81,7 @@ func (c *ClientList) SendLog(state *state.State, entry *raft.Entry) {
 
 	prevLogTerm := state.GetLastLogTerm()
 	state.Log = append(state.Log, *entry)
+	state.LastApplied++
 
 	for _, addr := range *c {
 		cl, _ := CreateClient(addr)
@@ -102,7 +103,7 @@ func (c *ClientList) SendLog(state *state.State, entry *raft.Entry) {
 
 func AppendLogs(cl raft.RaftNodeClient, addr string, prevLogTerm uint32, state *state.State, entry *raft.Entry) {
 	nextIndex := state.NextIndex[addr]
-	fmt.Println(nextIndex)
+	fmt.Println(nextIndex, state.LastApplied)
 	if state.LastApplied >= nextIndex {
 		logs := &raft.EntryData{
 			Term:         state.CurrentTerm,

@@ -21,6 +21,7 @@ spec:
       labels:
         run: raft
     spec:
+      serviceAccountName: raft
       containers:
       - env:
         - name: POD_NAME

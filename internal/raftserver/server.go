@@ -69,7 +69,7 @@ func (r *RaftServer) AppendEntries(ctx context.Context, req *raft.EntryData) (*r
 
 	if (req.Term < r.State.CurrentTerm) || (r.State.LastApplied < req.PrevLogIndex) ||
 		r.State.GetLogTerm(req.GetPrevLogTerm()) != req.GetPrevLogTerm() {
-		fmt.Println(r.State.GetLogTerm(req.GetPrevLogTerm()), req.GetPrevLogTerm())
+		fmt.Println(req.Term, r.State.CurrentTerm, r.State.LastApplied, req.PrevLogIndex, r.State.GetLogTerm(req.GetPrevLogTerm()), req.GetPrevLogTerm())
 		fmt.Println("returning failure", req.LeaderID)
 		return EntryFailure(r.State.CurrentTerm), nil
 	}
